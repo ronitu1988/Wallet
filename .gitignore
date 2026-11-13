@@ -1,0 +1,5 @@
+salon.db
+salon.db-*
+__pycache__/
+.env
+.venv/
