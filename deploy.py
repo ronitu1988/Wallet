@@ -32,57 +32,66 @@ app.config.update(
     MAX_CONTENT_LENGTH=16_000,
 )
 
-STAGING_PASSWORD = os.environ["STAGING_PASSWORD"]
+# STAGING_PASSWORD = os.environ["STAGING_PASSWORD"]
 PUBLIC_ORIGIN = os.environ["PUBLIC_ORIGIN"].rstrip("/")
 
 
-GATE_HTML = """
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Lumi staging access</title>
-</head>
-<body style="background:#f5f5ef;color:#173a32;
-             font-family:system-ui;padding:10vh 24px">
-  <main style="max-width:400px;margin:auto">
-    <h1>Lumi staging</h1>
-    <p>Private development preview. Test funds only.</p>
-    <form method="post">
-      <label for="password">Staging access password</label>
-      <input id="password" name="password" type="password" required
-             autocomplete="current-password"
-             style="box-sizing:border-box;width:100%;
-                    padding:14px;margin:12px 0">
-      <button style="padding:12px 20px">Open preview</button>
-    </form>
-    {% if error %}<p role="alert">{{ error }}</p>{% endif %}
-  </main>
-</body>
-</html>
-"""
+# GATE_HTML = """
+# <!doctype html>
+# <html lang="en">
+# <head>
+#   <meta charset="utf-8">
+#   <meta name="viewport" content="width=device-width, initial-scale=1">
+#   <title>Lumi staging access</title>
+# </head>
+# <body style="background:#f5f5ef;color:#173a32;
+#              font-family:system-ui;padding:10vh 24px">
+#   <main style="max-width:400px;margin:auto">
+#     <h1>Lumi staging</h1>
+#     <p>Private development preview. Test funds only.</p>
+#     <form method="post">
+#       <label for="password">Staging access password</label>
+#       <input id="password" name="password" type="password" required
+#              autocomplete="current-password"
+#              style="box-sizing:border-box;width:100%;
+#                     padding:14px;margin:12px 0">
+#       <button style="padding:12px 20px">Open preview</button>
+#     </form>
+#     {% if error %}<p role="alert">{{ error }}</p>{% endif %}
+#   </main>
+# </body>
+# </html>
+# """
 
+
+# @app.before_request
+# def protect_staging():
+#     # Allow a host health check without exposing application data.
+#     if request.path == "/healthz":
+#         return None
+
+#     # Require same-origin browser writes.
+#     if request.method == "POST":
+#         if request.headers.get("Origin") != PUBLIC_ORIGIN:
+#             return jsonify(error="Invalid request origin"), 403
+
+#     if request.path == "/preview-access":
+#         return None
+
+#     if not session.get("preview_access"):
+#         if request.path.startswith("/api/"):
+#             return jsonify(error="Open the staging access page first"), 401
+#         return redirect("/preview-access")
 
 @app.before_request
-def protect_staging():
-    # Allow a host health check without exposing application data.
+def validate_request_origin():
     if request.path == "/healthz":
         return None
 
-    # Require same-origin browser writes.
+    # Keep the same-origin protection for browser writes.
     if request.method == "POST":
         if request.headers.get("Origin") != PUBLIC_ORIGIN:
             return jsonify(error="Invalid request origin"), 403
-
-    if request.path == "/preview-access":
-        return None
-
-    if not session.get("preview_access"):
-        if request.path.startswith("/api/"):
-            return jsonify(error="Open the staging access page first"), 401
-        return redirect("/preview-access")
-
 
 @app.after_request
 def security_headers(response):
@@ -98,23 +107,23 @@ def health():
     return {"ok": True}
 
 
-@app.route("/preview-access", methods=["GET", "POST"])
-def preview_access():
-    error = None
+# @app.route("/preview-access", methods=["GET", "POST"])
+# def preview_access():
+#     error = None
 
-    if request.method == "POST":
-        supplied = request.form.get("password", "")
-        if hmac.compare_digest(
-            supplied.encode(),
-            STAGING_PASSWORD.encode(),
-        ):
-            session.clear()
-            session["preview_access"] = True
-            return redirect("/")
+#     if request.method == "POST":
+#         supplied = request.form.get("password", "")
+#         if hmac.compare_digest(
+#             supplied.encode(),
+#             STAGING_PASSWORD.encode(),
+#         ):
+#             session.clear()
+#             session["preview_access"] = True
+#             return redirect("/")
 
-        error = "Incorrect staging password."
+#         error = "Incorrect staging password."
 
-    return render_template_string(GATE_HTML, error=error)
+#     return render_template_string(GATE_HTML, error=error)
 
 
 @app.get("/")
